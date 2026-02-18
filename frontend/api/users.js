@@ -1,4 +1,5 @@
-const { Pool } = require("pg");
+import pg from "pg";
+const { Pool } = pg;
 
 const db = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -6,23 +7,17 @@ const db = new Pool({
 });
 
 // Auto-create table
-(async () => {
-    try {
-        await db.query(`
-      CREATE TABLE IF NOT EXISTS employee (
-        id SERIAL PRIMARY KEY,
-        empname VARCHAR(255) NOT NULL,
-        empage INTEGER NOT NULL,
-        empdept VARCHAR(255) NOT NULL,
-        photo VARCHAR(255)
-      )
-    `);
-    } catch (e) {
-        console.error("DB init error:", e.message);
-    }
-})();
+db.query(`
+  CREATE TABLE IF NOT EXISTS employee (
+    id SERIAL PRIMARY KEY,
+    empname VARCHAR(255) NOT NULL,
+    empage INTEGER NOT NULL,
+    empdept VARCHAR(255) NOT NULL,
+    photo VARCHAR(255)
+  )
+`).catch(e => console.error("DB init error:", e.message));
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
@@ -32,9 +27,13 @@ module.exports = async (req, res) => {
     const url = req.url || "";
     const method = req.method;
 
+    // Extract ID from URL like /api/users/5
+    const idMatch = url.match(/\/(\d+)(\?.*)?$/);
+    const id = idMatch ? idMatch[1] : null;
+
     try {
-        // GET /api/users
-        if (method === "GET" && (url === "/" || url === "" || url.startsWith("?") || url === "/api/users")) {
+        // GET /api/users or GET /api/users?search=...&dept=...
+        if (method === "GET" && !id) {
             const { search, dept } = req.query || {};
             const conditions = [];
             const params = [];
@@ -46,9 +45,8 @@ module.exports = async (req, res) => {
         }
 
         // GET /api/users/:id
-        const idMatch = url.match(/^\/(\d+)/);
-        if (method === "GET" && idMatch) {
-            const result = await db.query("SELECT * FROM employee WHERE id = $1", [idMatch[1]]);
+        if (method === "GET" && id) {
+            const result = await db.query("SELECT * FROM employee WHERE id = $1", [id]);
             if (!result.rows.length) return res.status(404).json({ error: "Not found" });
             return res.json(result.rows[0]);
         }
@@ -65,20 +63,20 @@ module.exports = async (req, res) => {
         }
 
         // PUT /api/users/:id
-        if (method === "PUT" && idMatch) {
+        if (method === "PUT" && id) {
             const { EmpName, EmpAge, EmpDept } = req.body || {};
-            const existing = await db.query("SELECT photo FROM employee WHERE id = $1", [idMatch[1]]);
+            const existing = await db.query("SELECT photo FROM employee WHERE id = $1", [id]);
             const photo = existing.rows[0]?.photo || null;
             await db.query(
                 "UPDATE employee SET empname=$1, empage=$2, empdept=$3, photo=$4 WHERE id=$5",
-                [EmpName, EmpAge, EmpDept, photo, idMatch[1]]
+                [EmpName, EmpAge, EmpDept, photo, id]
             );
-            return res.json({ id: idMatch[1], EmpName, EmpAge, EmpDept });
+            return res.json({ id, EmpName, EmpAge, EmpDept });
         }
 
         // DELETE /api/users/:id
-        if (method === "DELETE" && idMatch) {
-            await db.query("DELETE FROM employee WHERE id = $1", [idMatch[1]]);
+        if (method === "DELETE" && id) {
+            await db.query("DELETE FROM employee WHERE id = $1", [id]);
             return res.json({ message: "Deleted" });
         }
 
@@ -87,4 +85,4 @@ module.exports = async (req, res) => {
         console.error(error);
         return res.status(500).json({ error: error.message });
     }
-};
+}
