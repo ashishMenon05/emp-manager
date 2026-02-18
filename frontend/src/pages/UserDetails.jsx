@@ -76,7 +76,7 @@ const UserDetail = () => {
             <div className="flex items-end gap-5 -mt-12 mb-6">
               {user.photo ? (
                 <img
-                  src={`/uploads/${user.photo}`}
+                  src={user.photo?.startsWith("http") ? user.photo : `/uploads/${user.photo}`}
                   alt={user.empname}
                   className="w-24 h-24 rounded-2xl object-cover border-4 border-slate-800 shadow-xl"
                   onError={(e) => {

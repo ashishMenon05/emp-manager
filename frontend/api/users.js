@@ -18,7 +18,6 @@ db.query(`
 `).catch(e => console.error("DB init error:", e.message));
 
 export default async function handler(req, res) {
-    // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -26,13 +25,11 @@ export default async function handler(req, res) {
 
     const url = req.url || "";
     const method = req.method;
-
-    // Extract ID from URL like /api/users/5
     const idMatch = url.match(/\/(\d+)(\?.*)?$/);
     const id = idMatch ? idMatch[1] : null;
 
     try {
-        // GET /api/users or GET /api/users?search=...&dept=...
+        // GET /api/users
         if (method === "GET" && !id) {
             const { search, dept } = req.query || {};
             const conditions = [];
@@ -51,27 +48,30 @@ export default async function handler(req, res) {
             return res.json(result.rows[0]);
         }
 
-        // POST /api/users
+        // POST /api/users — body: { EmpName, EmpAge, EmpDept, photo (cloudinary URL) }
         if (method === "POST") {
-            const { EmpName, EmpAge, EmpDept } = req.body || {};
+            const { EmpName, EmpAge, EmpDept, photo } = req.body || {};
             if (!EmpName || !EmpAge || !EmpDept) return res.status(400).json({ error: "Missing fields" });
             const result = await db.query(
                 "INSERT INTO employee (empname, empage, empdept, photo) VALUES ($1, $2, $3, $4) RETURNING id",
-                [EmpName, EmpAge, EmpDept, null]
+                [EmpName, EmpAge, EmpDept, photo || null]
             );
-            return res.status(201).json({ id: result.rows[0].id, EmpName, EmpAge, EmpDept });
+            return res.status(201).json({ id: result.rows[0].id, EmpName, EmpAge, EmpDept, photo });
         }
 
         // PUT /api/users/:id
         if (method === "PUT" && id) {
-            const { EmpName, EmpAge, EmpDept } = req.body || {};
-            const existing = await db.query("SELECT photo FROM employee WHERE id = $1", [id]);
-            const photo = existing.rows[0]?.photo || null;
+            const { EmpName, EmpAge, EmpDept, photo } = req.body || {};
+            let finalPhoto = photo;
+            if (!finalPhoto) {
+                const existing = await db.query("SELECT photo FROM employee WHERE id = $1", [id]);
+                finalPhoto = existing.rows[0]?.photo || null;
+            }
             await db.query(
                 "UPDATE employee SET empname=$1, empage=$2, empdept=$3, photo=$4 WHERE id=$5",
-                [EmpName, EmpAge, EmpDept, photo, id]
+                [EmpName, EmpAge, EmpDept, finalPhoto, id]
             );
-            return res.json({ id, EmpName, EmpAge, EmpDept });
+            return res.json({ id, EmpName, EmpAge, EmpDept, photo: finalPhoto });
         }
 
         // DELETE /api/users/:id

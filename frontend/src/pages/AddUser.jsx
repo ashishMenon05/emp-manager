@@ -13,21 +13,14 @@ const AddUser = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = {
-      EmpName: formData.get("EmpName"),
-      EmpAge: formData.get("EmpAge"),
-      EmpDept: formData.get("EmpDept"),
-    };
-    mutation.mutate(data);
-  };
+
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) setPreview(URL.createObjectURL(file));
   };
+
+  const [uploading, setUploading] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (data) =>
@@ -40,8 +33,43 @@ const AddUser = () => {
     },
     onError: (error) => {
       alert("Error adding employee: " + error.message);
+      setUploading(false);
     },
   });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setUploading(true);
+    const formData = new FormData(e.target);
+    const photoFile = formData.get("photo");
+    let photoUrl = null;
+
+    if (photoFile && photoFile.size > 0) {
+      const data = new FormData();
+      data.append("file", photoFile);
+      data.append("upload_preset", "emp_manager_unsigned");
+      data.append("cloud_name", "dahajf96a");
+
+      try {
+        const res = await axios.post(
+          "https://api.cloudinary.com/v1_1/dahajf96a/image/upload",
+          data
+        );
+        photoUrl = res.data.secure_url;
+      } catch (err) {
+        alert("Photo upload failed: " + err.message);
+        setUploading(false);
+        return;
+      }
+    }
+
+    mutation.mutate({
+      EmpName: formData.get("EmpName"),
+      EmpAge: formData.get("EmpAge"),
+      EmpDept: formData.get("EmpDept"),
+      photo: photoUrl,
+    });
+  };
 
   return (
     <main className="min-h-screen bg-slate-900 pt-20 pb-12 px-4">
@@ -135,7 +163,7 @@ const AddUser = () => {
               disabled={mutation.isPending}
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors mt-2"
             >
-              {mutation.isPending ? "Saving..." : "Save Employee"}
+              {uploading || mutation.isPending ? "Saving..." : "Save Employee"}
             </button>
           </form>
         </div>

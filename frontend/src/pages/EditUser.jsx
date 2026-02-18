@@ -19,6 +19,8 @@ const EditUser = () => {
     queryFn: () => axios.get(`/api/users/${Id}`).then((res) => res.data),
   });
 
+  const [uploading, setUploading] = useState(false);
+
   const mutation = useMutation({
     mutationFn: (data) =>
       axios.put(`/api/users/${Id}`, data, {
@@ -31,16 +33,41 @@ const EditUser = () => {
     },
     onError: (error) => {
       alert("Error updating employee: " + error.message);
+      setUploading(false);
     },
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setUploading(true);
     const formData = new FormData(e.target);
+    const photoFile = formData.get("photo");
+    let photoUrl = null;
+
+    if (photoFile && photoFile.size > 0) {
+      const data = new FormData();
+      data.append("file", photoFile);
+      data.append("upload_preset", "emp_manager_unsigned");
+      data.append("cloud_name", "dahajf96a");
+
+      try {
+        const res = await axios.post(
+          "https://api.cloudinary.com/v1_1/dahajf96a/image/upload",
+          data
+        );
+        photoUrl = res.data.secure_url;
+      } catch (err) {
+        alert("Photo upload failed: " + err.message);
+        setUploading(false);
+        return;
+      }
+    }
+
     mutation.mutate({
       EmpName: formData.get("EmpName"),
       EmpAge: formData.get("EmpAge"),
       EmpDept: formData.get("EmpDept"),
+      photo: photoUrl, // Pass new URL or null (backend handles null by keeping existing)
     });
   };
 
@@ -147,7 +174,7 @@ const EditUser = () => {
                 {/* Preview: new upload takes priority, then existing */}
                 {(preview || user.photo) && (
                   <img
-                    src={preview || `/uploads/${user.photo}`}
+                    src={preview || (user.photo?.startsWith("http") ? user.photo : `/uploads/${user.photo}`)}
                     className="w-24 h-24 rounded-xl object-cover border border-slate-600"
                     alt="Preview"
                     onError={(e) => { e.target.style.display = "none"; }}
@@ -163,7 +190,7 @@ const EditUser = () => {
                 disabled={mutation.isPending}
                 className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
               >
-                {mutation.isPending ? "Saving..." : "Save Changes"}
+                {uploading || mutation.isPending ? "Saving..." : "Save Changes"}
               </button>
               <button
                 type="button"

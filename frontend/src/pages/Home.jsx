@@ -100,8 +100,8 @@ const Home = () => {
             <button
               onClick={() => setDept("")}
               className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all ${dept === ""
-                  ? "bg-indigo-600 text-white border-indigo-500"
-                  : "bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-400"
+                ? "bg-indigo-600 text-white border-indigo-500"
+                : "bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-400"
                 }`}
             >
               All
@@ -111,8 +111,8 @@ const Home = () => {
                 key={d}
                 onClick={() => setDept(dept === d ? "" : d)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all ${dept === d
-                    ? "bg-indigo-600 text-white border-indigo-500"
-                    : "bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-400"
+                  ? "bg-indigo-600 text-white border-indigo-500"
+                  : "bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-400"
                   }`}
               >
                 {d}
@@ -151,7 +151,7 @@ const Home = () => {
                         <div className="flex items-center gap-3">
                           {user.photo ? (
                             <img
-                              src={`/uploads/${user.photo}`}
+                              src={user.photo?.startsWith("http") ? user.photo : `/uploads/${user.photo}`}
                               alt={user.empname}
                               className="w-9 h-9 rounded-full object-cover flex-shrink-0"
                               onError={(e) => {
