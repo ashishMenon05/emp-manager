@@ -49,7 +49,6 @@ const AddUser = () => {
       const data = new FormData();
       data.append("file", photoFile);
       data.append("upload_preset", cloudinaryConfig.uploadPreset);
-      data.append("cloud_name", cloudinaryConfig.cloudName);
 
       try {
         const res = await axios.post(
@@ -58,7 +57,8 @@ const AddUser = () => {
         );
         photoUrl = res.data.secure_url;
       } catch (err) {
-        alert("Photo upload failed: " + err.message);
+        console.error("Cloudinary Error:", err);
+        alert("Photo upload failed: " + (err.response?.data?.error?.message || err.message));
         setUploading(false);
         return;
       }
