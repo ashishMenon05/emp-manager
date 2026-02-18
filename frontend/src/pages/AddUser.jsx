@@ -16,7 +16,12 @@ const AddUser = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    mutation.mutate(formData);
+    const data = {
+      EmpName: formData.get("EmpName"),
+      EmpAge: formData.get("EmpAge"),
+      EmpDept: formData.get("EmpDept"),
+    };
+    mutation.mutate(data);
   };
 
   const handleFileChange = (e) => {
@@ -25,9 +30,9 @@ const AddUser = () => {
   };
 
   const mutation = useMutation({
-    mutationFn: (formData) =>
-      axios.post("/api/users", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+    mutationFn: (data) =>
+      axios.post("/api/users", data, {
+        headers: { "Content-Type": "application/json" },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries(["users"]);
