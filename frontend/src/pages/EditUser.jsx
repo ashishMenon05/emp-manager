@@ -1,21 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import React, { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
+
+const DEPTS = [
+  "Software", "Marketing", "Data Scientist", "Data Analyst",
+  "System Analyst", "UX/UI Designer", "Cybersecurity Manager", "Others",
+];
 
 const EditUser = () => {
-  const {Id} = useParams();
-  const navigate = useNavigate(); 
+  const { Id } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [preview, setPreview] = useState(null);
-  const { data:user, error, isLoading } = useQuery({
-   queryKey: ["user", Id],
-   queryFn: () => axios.get(`http://localhost:5000/api/users/${Id}`).then((res) => res.data),
+
+  const { data: user, error, isLoading } = useQuery({
+    queryKey: ["user", Id],
+    queryFn: () => axios.get(`/api/users/${Id}`).then((res) => res.data),
   });
-   
-  const mutation =  useMutation({
-    mutationFn: (formData) => 
-      axios.put(`http://localhost:5000/api/users/${Id}`, formData, {
+
+  const mutation = useMutation({
+    mutationFn: (formData) =>
+      axios.put(`/api/users/${Id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       }),
     onSuccess: () => {
@@ -23,8 +29,12 @@ const EditUser = () => {
       queryClient.invalidateQueries(["user", Id]);
       navigate(`/user/${Id}`);
     },
+    onError: (error) => {
+      alert("Error updating employee: " + error.message);
+    },
   });
-  const handleSubmit = (e) => { 
+
+  const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     mutation.mutate(formData);
@@ -32,93 +42,137 @@ const EditUser = () => {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setPreview(URL.createObjectURL(file));
-    }
+    if (file) setPreview(URL.createObjectURL(file));
   };
- 
-  if (isLoading) return <div className="text-center">
-    Loading...</div>;
-  
-  if (error) return <div className="text-center text-red-600">Error: {error.message}</div>;
+
+  if (isLoading)
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-red-400">
+        Error: {error.message}
+      </div>
+    );
 
   return (
-  <section className="max-w-125 mx-auto mt-24 mb-12 p-5 bg-white shadow-sm 
-  rounded-lg border border-gray-100">
-    <h2 className="text-xl font-semibold text-[#333] border-b border-gray-200 pb-4 mb-6">Edit User Details</h2>
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-      <label htmlFor="EmpName" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-      <input 
-      type="text" 
-      id="EmpName" 
-      name="EmpName" 
-      placeholder="Enter name" 
-      required 
-      defaultValue={user.EmpName}
-      className="w-full p-2.5 text-base border
-      border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" />
-     </div>
-     <div>
-      <label htmlFor="EmpAge" className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-      <input 
-      type="text" 
-      id="EmpAge" 
-      name="EmpAge" 
-      placeholder="Enter name" 
-      required 
-      defaultValue={user.EmpAge}
-      className="w-full p-2.5 text-base border
-      border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" />
-     </div>
-     <div>
-      <label htmlFor="EmpDept" className="block text-sm font-medium text-gray-700 mb-1">Dept</label>
-      <select name="EmpDept" id="EmpDept"  placeholder="Enter Dept" required className="w-full p-2.5 text-base border
-      border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-      defaultValue={user.EmpDept}>
-        <option value="">Select Dept</option> 
-        <option value="Software">Software</option>
-        <option value="Marketing">Marketing</option>
-        <option value="Data Scientist">Data Scientist</option>
-        <option value="Data Analyst">Data Analyst</option>
-        <option value="System Analyst">System Analyst</option>
-        <option value="UX/UI Designer">UX/UI Designer</option>
-        <option value="Cybersecurity Manager">Cybersecurity Manager</option>
-        <option value="Others">Others</option>
-       </select>
-      </div> 
-      <div>
-       <label htmlFor="photo" className="block text-sm font-medium text-gray-700 mb-1">
-        Photo</label>
-       <input 
-       name="photo" 
-       type="file" 
-       id="photo" 
-       className="w-full p-2 text-sm text-gray-500
-      bg-gray-50 border border-gray-30 rounded cursor-pointer focus:outline-none" accept="image/*" onChange = {handleFileChange} />
-       <div className="mt-3 min-h-25 flex justify-center items-center border border-dashed border-gray-300
-       rounded bg-gray-50 overflow-hidden">
-        {preview ? ( <img src={preview} className="max-h-50 object-contain" /> ): 
-         user.photo ? ( <img
-          className="w-32 h-32 object-cover rounded-full"
-          src={`http://localhost:5000/uploads/${user.photo}`} alt={user.photo}
-         onError={(e) => { 
-           e.target.onerror = null;
-           e.target.src = "./user.png";
-        }}
-         /> ) : ( <span className="text-gray-400 text-sm">Upload Your Image</span>)} 
-       </div>
-     </div>
-    <div className="pt-2 flex gap-3">
-      <button 
-      type ="submit"
-      className="flex-1 py-3 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 active:scale-[0.98]
-      transition-all disabled:bg-gray-400 disabled:cursor-not-allowed">Update Details</button>
-      <button type="button" onClick={() => navigate(-1)} className="px-6 py-3 bg-gray-500 text-white font-medium rounded hover:bg-gray-600 active:scale-[0.98]
-      transition-all flex-1">Cancel</button>
-    </div>
-   </form>
-  </section>
+    <main className="min-h-screen bg-slate-900 pt-20 pb-12 px-4">
+      <div className="max-w-lg mx-auto">
+
+        <Link to={`/user/${Id}`} className="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6 transition-colors">
+          ← Back to Profile
+        </Link>
+
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-slate-700 bg-slate-900/50">
+            <h1 className="text-xl font-bold text-white">Edit Employee</h1>
+            <p className="text-slate-400 text-sm mt-1">Update the details for <span className="text-indigo-400 font-medium">{user.empname}</span></p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="px-8 py-6 space-y-5">
+            {/* Name */}
+            <div>
+              <label htmlFor="EmpName" className="block text-sm font-medium text-slate-300 mb-2">
+                Full Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                id="EmpName"
+                name="EmpName"
+                required
+                defaultValue={user.empname}
+                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            {/* Age */}
+            <div>
+              <label htmlFor="EmpAge" className="block text-sm font-medium text-slate-300 mb-2">
+                Age <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="number"
+                id="EmpAge"
+                name="EmpAge"
+                required
+                min="18"
+                max="100"
+                defaultValue={user.empage}
+                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            {/* Department */}
+            <div>
+              <label htmlFor="EmpDept" className="block text-sm font-medium text-slate-300 mb-2">
+                Department <span className="text-red-400">*</span>
+              </label>
+              <select
+                name="EmpDept"
+                id="EmpDept"
+                required
+                defaultValue={user.empdept}
+                className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              >
+                <option value="">Select a department</option>
+                {DEPTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+
+            {/* Photo */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Photo</label>
+              <div className="flex gap-4 items-start">
+                <div className="flex-1">
+                  <label
+                    htmlFor="photo"
+                    className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-indigo-500 hover:bg-slate-900/50 transition-all"
+                  >
+                    <svg className="w-6 h-6 text-slate-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="text-slate-400 text-xs">Upload new photo</span>
+                    <input name="photo" id="photo" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                  </label>
+                </div>
+                {/* Preview: new upload takes priority, then existing */}
+                {(preview || user.photo) && (
+                  <img
+                    src={preview || `/uploads/${user.photo}`}
+                    className="w-24 h-24 rounded-xl object-cover border border-slate-600"
+                    alt="Preview"
+                    onError={(e) => { e.target.style.display = "none"; }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={mutation.isPending}
+                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
+              >
+                {mutation.isPending ? "Saving..." : "Save Changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
   );
 };
 

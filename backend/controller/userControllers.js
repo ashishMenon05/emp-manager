@@ -2,103 +2,134 @@ const db = require("../db");
 const path = require("path");
 const fsPromises = require("fs").promises;
 
-//Get all users
+// Get all users
 const getAllUsers = async (req, res) => {
-
   try {
-    const { page = 1, limit = 2, search } = req.query;
-    const offset = (page - 1) * limit;
-    let query = "SELECT * FROM employee";
-    let countQuery = "SELECT COUNT(*) as total FROM employee";
-    let params = [];
+    const { search, dept } = req.query;
+    const conditions = [];
+    const params = [];
 
     if (search) {
-        query += " WHERE empname LIKE ? OR empdept LIKE ?";
-        countQuery += " WHERE empname LIKE ? OR empdept LIKE ?";
-        params=[`%${search}%`, `%${search}%`];
+      params.push(`%${search}%`);
+      conditions.push(`empname ILIKE $${params.length}`);
     }
-    query += " LIMIT ? OFFSET ?";
-    params.push(+limit, +offset);
-    const [users] = await db.query(query, params);
-    const [count] = await db.query(countQuery ,search ? [`%${search}%`, `%${search}%`] : []);
-    res.json({ users, totalPages: Math.ceil(count[0].total / limit),
-      currentPage: +page,
+    if (dept) {
+      params.push(dept);
+      conditions.push(`empdept = $${params.length}`);
+    }
 
-    });
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const usersResult = await db.query(`SELECT * FROM employee ${where} ORDER BY id`, params);
+    const users = usersResult.rows;
+
+    res.json({ users, total: users.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-//Get Single user by id 
+// Get single user by id
 const getSingleUserById = async (req, res) => {
-   try {
-     const Id = req.params.Id;
-     if (!Id) {
-      return res.status(404).json({ error: "User Id required" });
-     }
-     const [users] = await db.query("SELECT * FROM employee WHERE Id=?",[Id]);
-     console.log(users);
-     if(users.length===0){
-           return res.status(404).json({ error: "User not found"})
-     }
-     res.json(users[0]);
-   } catch (error) {
+  try {
+    const { Id } = req.params;
+    if (!Id) {
+      return res.status(400).json({ error: "User Id required" });
+    }
+    const result = await db.query("SELECT * FROM employee WHERE id = $1", [Id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
     res.status(500).json({ error: error.message });
-   }
+  }
 };
 
-//Add new user
+// Add new user
 const addUser = async (req, res) => {
   try {
     const { EmpName, EmpAge, EmpDept } = req.body;
-    const photo = req.file?req.file.filename : null;
-    const [result] = await db.query( "INSERT INTO employee (EmpName, EmpAge, EmpDept, photo) VALUES (?,?,?,?)", [EmpName, EmpAge, EmpDept, photo]);
-    res.status(201).json({ Id: result.insertId, EmpName, EmpAge, EmpDept, photo });
+    const photo = req.file ? req.file.filename : null;
+    const result = await db.query(
+      "INSERT INTO employee (empname, empage, empdept, photo) VALUES ($1, $2, $3, $4) RETURNING id",
+      [EmpName, EmpAge, EmpDept, photo]
+    );
+    res.status(201).json({
+      Id: result.rows[0].id,
+      EmpName,
+      EmpAge,
+      EmpDept,
+      photo,
+    });
   } catch (error) {
     console.error("Error in addUser:", error);
     res.status(500).json({ error: error.message });
-  } 
+  }
 };
 
 // Update user
 const updateUser = async (req, res) => {
   try {
     const { EmpName, EmpAge, EmpDept } = req.body;
-    const photo = req.file ? req.file.filename : null;
-    await db.query("UPDATE employee SET EmpName = ?, EmpAge = ?, EmpDept = ?, photo = ? WHERE Id = ?", [EmpName, EmpAge,
-    EmpDept, photo, req.params.Id]);
+    let photo = req.file ? req.file.filename : null;
+
+    // If no new photo uploaded, keep the old one
+    if (!photo) {
+      const existing = await db.query(
+        "SELECT photo FROM employee WHERE id = $1",
+        [req.params.Id]
+      );
+      if (existing.rows.length > 0) {
+        photo = existing.rows[0].photo;
+      }
+    }
+
+    const result = await db.query(
+      "UPDATE employee SET empname = $1, empage = $2, empdept = $3, photo = $4 WHERE id = $5",
+      [EmpName, EmpAge, EmpDept, photo, req.params.Id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     res.status(200).json({ Id: req.params.Id, EmpName, EmpAge, EmpDept, photo });
   } catch (error) {
     res.status(500).json({ error: error.message });
-  } 
+  }
 };
 
-//Delete User
-
-const deleteUser =  async(req, res) => {
+// Delete user
+const deleteUser = async (req, res) => {
   try {
-    const [users] = await db.query("SELECT photo FROM employee WHERE Id = ?", [req.params.Id]);
-    if (users.length === 0) {
-      return res.status(404).json({ error: "user not found" });
+    const existing = await db.query(
+      "SELECT photo FROM employee WHERE id = $1",
+      [req.params.Id]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
     }
-    const user =  users[0]; //user.photo
+
+    const user = existing.rows[0];
     if (user.photo) {
-      const photoPath = path.join(__dirname, "../uploads", user.photo); 
-      console.log(photoPath);
-      
-      try{
+      const photoPath = path.join(__dirname, "../uploads", user.photo);
+      try {
         await fsPromises.unlink(photoPath);
       } catch (err) {
-        console.error("Error deleting photo:", err);
+        console.error("Error deleting photo:", err.message);
       }
     }
-    const [result] = await db.query("DELETE FROM employee WHERE Id = ?", [req.params.Id]);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "User not Found "});
+
+    const result = await db.query(
+      "DELETE FROM employee WHERE id = $1",
+      [req.params.Id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "User not found" });
     }
-    
-    res.json({ message: "User delete Successfully "});
+
+    res.json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

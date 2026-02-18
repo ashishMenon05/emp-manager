@@ -1,23 +1,27 @@
-const mysql = require("mysql2/promise");
+const { Pool } = require("pg");
 require("dotenv").config();
 
-// Connection String
-const db = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME || "empdb1",
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
-// Test Connection 
-(async() => {
-    try {
-      const connection = await db.getConnection();
-      console.log("MySQL Server is running");
-      connection.release();
-    } catch (error) {
-      console.error("MySql connection failed:", error);
-    }
+// Auto-create employee table if it doesn't exist
+(async () => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS employee (
+        id SERIAL PRIMARY KEY,
+        empname VARCHAR(255) NOT NULL,
+        empage INTEGER NOT NULL,
+        empdept VARCHAR(255) NOT NULL,
+        photo VARCHAR(255)
+      )
+    `);
+    console.log("Database connected and table ready.");
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+  }
 })();
 
 module.exports = db;
