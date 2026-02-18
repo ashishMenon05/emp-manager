@@ -46,6 +46,12 @@ const EditUser = () => {
     let photoUrl = null;
 
     if (photoFile && photoFile.size > 0) {
+      if (photoFile.size > 10 * 1024 * 1024) {
+        alert("File size too large. Please upload an image smaller than 10MB.");
+        setUploading(false);
+        return;
+      }
+
       const data = new FormData();
       data.append("file", photoFile);
       data.append("upload_preset", cloudinaryConfig.uploadPreset);
