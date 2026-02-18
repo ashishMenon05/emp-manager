@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import cloudinaryConfig from "../cloudinary";
 
 const DEPTS = [
   "Software", "Marketing", "Data Scientist", "Data Analyst",
@@ -47,12 +48,12 @@ const EditUser = () => {
     if (photoFile && photoFile.size > 0) {
       const data = new FormData();
       data.append("file", photoFile);
-      data.append("upload_preset", "emp_manager_unsigned");
-      data.append("cloud_name", "dahajf96a");
+      data.append("upload_preset", cloudinaryConfig.uploadPreset);
+      data.append("cloud_name", cloudinaryConfig.cloudName);
 
       try {
         const res = await axios.post(
-          "https://api.cloudinary.com/v1_1/dahajf96a/image/upload",
+          `https://api.cloudinary.com/v1_1/${cloudinaryConfig.cloudName}/image/upload`,
           data
         );
         photoUrl = res.data.secure_url;
