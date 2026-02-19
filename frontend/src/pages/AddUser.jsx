@@ -28,8 +28,8 @@ const AddUser = () => {
       axios.post("/api/users", data, {
         headers: { "Content-Type": "application/json" },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(["users"]);
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
       navigate("/");
     },
     onError: (error) => {
@@ -79,7 +79,13 @@ const AddUser = () => {
   };
 
   return (
-    <main className="min-h-screen bg-slate-900 pt-20 pb-12 px-4">
+    <main className="min-h-screen bg-slate-900 pt-20 pb-12 px-4 relative">
+      {(uploading || mutation.isPending) && (
+        <div className="absolute inset-0 bg-slate-900/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-white font-medium text-lg">Saving Employee...</p>
+        </div>
+      )}
       <div className="max-w-lg mx-auto">
 
         <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-6 transition-colors">
